@@ -38,6 +38,17 @@ merge_settings() { # jq filter merged into settings.json
   echo "update   $settings (backup: $BACKUP_DIR/settings.json.bak-$TS)"
 }
 
+register_toast_app() { # WSL: register the "Claude Code" toast sender (AUMID) under HKCU
+  command -v reg.exe >/dev/null || { echo "skip     toast app (not WSL)"; return; }
+  local win_dir key=HKCU\\Software\\Classes\\AppUserModelId\\ClaudeCode.Notify
+  win_dir=$(cd /mnt/c && cmd.exe /c 'echo %LOCALAPPDATA%\ClaudeCode' 2>/dev/null | tr -d '\r')
+  mkdir -p "$(wslpath "$win_dir")"
+  cp "$DOTFILES/claude/claude-code-icon.png" "$(wslpath "$win_dir")/icon.png"
+  reg.exe add "$key" /v DisplayName /t REG_SZ /d "Claude Code" /f >/dev/null
+  reg.exe add "$key" /v IconUri /t REG_SZ /d "$win_dir\\icon.png" /f >/dev/null
+  echo "register $key ($win_dir\\icon.png)"
+}
+
 # Claude Code status line
 link claude/statusline.sh "$CLAUDE_DIR/statusline.sh"
 merge_settings '.statusLine = {"type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 30}'
@@ -45,6 +56,7 @@ merge_settings '.statusLine = {"type": "command", "command": "~/.claude/statusli
 # Windows toast when Claude finishes or needs input (WSL only; no-op elsewhere).
 # Drops any existing entry for notify.sh first so reruns don't duplicate it.
 link claude/notify.sh "$CLAUDE_DIR/notify.sh"
+register_toast_app
 merge_settings '
   def notify($matcher):
     (. // []) | map(select(any(.hooks[]?; .command == "~/.claude/notify.sh") | not))

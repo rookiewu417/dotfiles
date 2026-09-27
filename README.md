@@ -39,7 +39,7 @@ echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":25}}'
 
 ## 完成提醒
 
-在 WSL 里通过 `powershell.exe` 弹 Windows 原生通知：
+在 WSL 里弹 Windows 原生通知，发送方显示为「Claude Code」（图标 `claude/claude-code-icon.png`）。`install.sh` 会在 `HKCU\Software\Classes\AppUserModelId\ClaudeCode.Notify` 注册这个应用名，并把图标复制到 `%LOCALAPPDATA%\ClaudeCode\`，不需要管理员权限。想换图标就替换 png 后重新运行 `install.sh`。
 
 - **Stop**：Claude 回复完成时，标题「Claude 已完成 · 项目名」，内容是回复开头。
 - **Notification**：需要批准权限、回答问题时，标题「Claude 需要你 · 项目名」。

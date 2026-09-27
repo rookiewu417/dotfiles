@@ -33,7 +33,11 @@ ps_script="
 \$t = \$x.GetElementsByTagName('text')
 \$t.Item(0).AppendChild(\$x.CreateTextNode($(q "$title"))) | Out-Null
 \$t.Item(1).AppendChild(\$x.CreateTextNode($(q "$body"))) | Out-Null
-\$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+# Sender registered by install.sh as \"Claude Code\"; fall back to PowerShell's if missing.
+\$app = 'ClaudeCode.Notify'
+if (-not (Test-Path 'HKCU:\\Software\\Classes\\AppUserModelId\\ClaudeCode.Notify')) {
+  \$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+}
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(\$app).Show([Windows.UI.Notifications.ToastNotification]::new(\$x))
 "
 
