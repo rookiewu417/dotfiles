@@ -14,8 +14,9 @@ git clone https://github.com/rookiewu417/dotfiles ~/dotfiles
 | 路径 | 安装到 | 说明 |
 |---|---|---|
 | `claude/statusline.sh` | `~/.claude/statusline.sh` | Claude Code 状态栏：模型 · effort · 目录 · 分支，以及上下文 / 5 小时 / 周额度进度条和提示词缓存倒计时。依赖 `jq`。 |
+| `claude/notify.sh` | `~/.claude/notify.sh` | Claude 完成或需要你操作时弹 Windows 通知（仅 WSL，其他环境自动跳过）。 |
 
-安装脚本还会把 `statusLine` 配置合并进 `~/.claude/settings.json`，不影响其他配置项。
+安装脚本还会把 `statusLine` 和 `hooks`（Stop / Notification）配置合并进 `~/.claude/settings.json`，不影响其他配置项。
 
 ## 状态栏
 
@@ -34,6 +35,19 @@ ctx █████░░░░░ 52% 104k/200k │ 5h ████████
 
 ```bash
 echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":25}}' | claude/statusline.sh
+```
+
+## 完成提醒
+
+在 WSL 里通过 `powershell.exe` 弹 Windows 原生通知：
+
+- **Stop**：Claude 回复完成时，标题「Claude 已完成 · 项目名」，内容是回复开头。
+- **Notification**：需要批准权限、回答问题时，标题「Claude 需要你 · 项目名」。
+
+钩子以 `async` 方式运行，不会拖慢 Claude Code。测试：
+
+```bash
+echo '{"hook_event_name":"Stop","cwd":"'$PWD'","last_assistant_message":"测试"}' | claude/notify.sh
 ```
 
 ## 许可证

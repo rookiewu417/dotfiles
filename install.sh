@@ -41,3 +41,14 @@ merge_settings() { # jq filter merged into settings.json
 # Claude Code status line
 link claude/statusline.sh "$CLAUDE_DIR/statusline.sh"
 merge_settings '.statusLine = {"type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 30}'
+
+# Windows toast when Claude finishes or needs input (WSL only; no-op elsewhere).
+# Drops any existing entry for notify.sh first so reruns don't duplicate it.
+link claude/notify.sh "$CLAUDE_DIR/notify.sh"
+merge_settings '
+  def notify($matcher):
+    (. // []) | map(select(any(.hooks[]?; .command == "~/.claude/notify.sh") | not))
+    + [{hooks: [{type: "command", command: "~/.claude/notify.sh", async: true}]}
+       + (if $matcher then {matcher: $matcher} else {} end)];
+  .hooks.Stop |= notify(null)
+  | .hooks.Notification |= notify("permission_prompt|agent_needs_input|elicitation_dialog|elicitation_url_dialog")'
