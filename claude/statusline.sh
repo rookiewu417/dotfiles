@@ -24,6 +24,51 @@ IFS=$'\x1f' read -r model effort fast dir ctx_pct ctx_size ctx_used \
     (.prompt_cache.hit_ratio // "")
   ] | map(tostring) | join("\u001f")' <<<"$input")
 
+# ── live usage: stdin rate_limits only update on API responses, so poll the
+# OAuth usage endpoint (the one /usage uses) in the background and cache it.
+USAGE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline
+USAGE_FILE=$USAGE_DIR/usage.json
+USAGE_TTL=60     # seconds between fetches
+USAGE_MAX_AGE=600 # ignore cache older than this
+
+mtime() { stat -c %Y "$1" 2>/dev/null || echo 0; }
+
+fetch_usage() {
+  local creds=$HOME/.claude/.credentials.json token exp tmp
+  [[ -r $creds ]] || return
+  IFS=$'\t' read -r token exp < <(jq -r '.claudeAiOauth | [.accessToken // "", (.expiresAt // 0)] | @tsv' "$creds")
+  [[ -n $token ]] && ((exp / 1000 > $(date +%s))) || return # expired: Claude Code refreshes it on next use
+  tmp=$(mktemp "$USAGE_DIR/usage.XXXXXX")
+  if curl -fsS -m 8 https://api.anthropic.com/api/oauth/usage \
+    -H "Authorization: Bearer $token" -H "anthropic-beta: oauth-2025-04-20" -o "$tmp" &&
+    jq -e '.five_hour or .seven_day' "$tmp" >/dev/null; then
+    mv "$tmp" "$USAGE_FILE"
+  else
+    rm -f "$tmp"
+  fi
+}
+
+mkdir -p "$USAGE_DIR"
+now=$(date +%s)
+if ((now - $(mtime "$USAGE_DIR/attempt") >= USAGE_TTL)); then
+  touch "$USAGE_DIR/attempt"
+  # Detached so a cancelled status line run doesn't kill it; flock keeps sessions from racing.
+  setsid bash -c "$(declare -f fetch_usage); USAGE_DIR='$USAGE_DIR' USAGE_FILE='$USAGE_FILE';
+    exec 9>'$USAGE_DIR/lock'; flock -n 9 && fetch_usage" </dev/null &>/dev/null &
+fi
+
+if ((now - $(mtime "$USAGE_FILE") < USAGE_MAX_AGE)); then
+  # A window whose reset time has passed is back to 0 until the next fetch.
+  IFS=$'\x1f' read -r u5 u5r u7 u7r < <(jq -r --argjson now "$now" '
+    def ts: if . then sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | fromdateiso8601 else null end;
+    def win: if . == null then ["", ""]
+      else (.resets_at | ts) as $r
+        | [(if $r != null and $r <= $now then 0 else .utilization end), ($r // "")] end;
+    (.five_hour | win) + (.seven_day | win) | map(tostring) | join("\u001f")' "$USAGE_FILE" 2>/dev/null)
+  [[ -n $u5 ]] && h5_pct=$u5 h5_reset=$u5r
+  [[ -n $u7 ]] && d7_pct=$u7 d7_reset=$u7r
+fi
+
 RST=$'\e[0m' DIM=$'\e[2m' BOLD=$'\e[1m'
 RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' BLU=$'\e[34m' MAG=$'\e[35m' CYN=$'\e[36m'
 SEP=" ${DIM}│${RST} "

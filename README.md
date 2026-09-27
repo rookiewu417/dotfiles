@@ -31,6 +31,8 @@ ctx █████░░░░░ 52% 104k/200k │ 5h ████████
 
 状态栏在每次收到回复、`/compact`、额度重置、缓存过期时刷新，另外每 30 秒定时刷新一次。
 
+额度数据：Claude Code 传进来的 `rate_limits` 只在收到 API 响应时更新，会话空闲时不会变。所以脚本在后台每 60 秒用本机登录凭据（`~/.claude/.credentials.json`）查一次 `/usage` 同款接口，缓存在 `~/.cache/claude-statusline/usage.json`，多个会话共用。缓存超过 10 分钟没更新（比如 token 过期），就退回用 Claude Code 传进来的数据。这个接口没有公开文档，将来可能变动。
+
 用模拟输入测试：
 
 ```bash
