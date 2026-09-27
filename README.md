@@ -33,3 +33,7 @@ Test with mock input:
 ```bash
 echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":25}}' | claude/statusline.sh
 ```
+
+## License
+
+MIT
