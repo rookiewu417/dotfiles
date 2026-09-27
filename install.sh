@@ -43,7 +43,16 @@ register_toast_app() { # WSL: register the "Claude Code" toast sender (AUMID) un
   local win_dir key=HKCU\\Software\\Classes\\AppUserModelId\\ClaudeCode.Notify
   win_dir=$(cd /mnt/c && cmd.exe /c 'echo %LOCALAPPDATA%\ClaudeCode' 2>/dev/null | tr -d '\r')
   mkdir -p "$(wslpath "$win_dir")"
-  cp "$DOTFILES/claude/claude-code-icon.png" "$(wslpath "$win_dir")/icon.png"
+  # Official Claude icon is fetched, not committed (trademark); fall back to the bundled one.
+  local icon; icon="$(wslpath "$win_dir")/icon.png"
+  if curl -fsSL -A 'Mozilla/5.0' -o "$icon.tmp" https://claude.ai/apple-touch-icon.png \
+    && file -b "$icon.tmp" | grep -q '^PNG image'; then
+    mv "$icon.tmp" "$icon"
+  else
+    rm -f "$icon.tmp"
+    cp "$DOTFILES/claude/claude-code-icon.png" "$icon"
+    echo "warn     could not fetch Claude icon, using bundled fallback"
+  fi
   reg.exe add "$key" /v DisplayName /t REG_SZ /d "Claude Code" /f >/dev/null
   reg.exe add "$key" /v IconUri /t REG_SZ /d "$win_dir\\icon.png" /f >/dev/null
   echo "register $key ($win_dir\\icon.png)"
